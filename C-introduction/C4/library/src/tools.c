@@ -295,25 +295,41 @@ skip_line(FILE *fp)
     while (c = fgetc(fp), c != '\n' && c != EOF);
 }
 
-void
+int
 read_xyz(
-         FILE *fp,
-         char *symbol,
-         double **positions,
-         double **velocities,
-         double *alat)
+        FILE *fp, 
+        char *symbol, 
+        double **positions,
+        double **velocities, 
+        double *alat)
 {
     int natoms;
-    if(fscanf(fp, "%i\nLattice=\"%lf 0.0 0.0 0.0 %lf 0.0 0.0 0.0 %lf\" ", &natoms, alat, alat, alat) == 0){
-        perror("Error");
+
+    if (fscanf(fp, "%i\nLattice=\"%lf 0.0 0.0 0.0 %lf 0.0 0.0 0.0 %lf\" ",
+               &natoms, alat, alat, alat) != 4) {
+        fprintf(stderr, "Invalid XYZ header\n");
+        return -1;
     }
+
     skip_line(fp);
-    for(int i = 0; i < natoms; ++i){
-        fscanf(fp, "%s %lf %lf %lf ",
-                symbol, &positions[i][0], &positions[i][1], &positions[i][2]);
-        fscanf(fp, "%lf %lf %lf\n",
-                &velocities[i][0], &velocities[i][1], &velocities[i][2]);
+
+    for (int i = 0; i < natoms; ++i) {
+        if (fscanf(fp, "%s %lf %lf %lf",
+                   symbol, &positions[i][0], &positions[i][1],
+                   &positions[i][2]) != 4) {
+            fprintf(stderr, "Invalid XYZ position data at atom %d\n", i);
+            return -1;
+        }
+
+        if (fscanf(fp, "%lf %lf %lf",
+                   &velocities[i][0], &velocities[i][1],
+                   &velocities[i][2]) != 3) {
+            fprintf(stderr, "Invalid XYZ velocity data at atom %d\n", i);
+            return -1;
+        }
     }
+
+    return 0;
 }
 
 void powerspectrum(

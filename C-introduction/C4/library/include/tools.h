@@ -291,7 +291,7 @@ void fft_freq(
  * Reads atoms from extxyz format.
  *
  * **********************************************/
-void
+int
 read_xyz(
           FILE *fp,
           char *symbol,

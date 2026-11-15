@@ -330,7 +330,8 @@ START_TEST(test_write_xyz)
     FILE *fp_read = fopen("atoms.extxyz", "r");
     char read_symbol[3];
     double read_alat;
-    read_xyz(fp_read, read_symbol, read_positions, read_velocities, &read_alat);
+    ck_assert_int_eq(read_xyz(fp_read, read_symbol, read_positions,
+                              read_velocities, &read_alat), 0);
     fclose(fp_read);
 
     for(int i = 0; i < SIZE; ++i){
@@ -362,6 +363,21 @@ START_TEST(test_fourier_transform)
     ck_assert_double_eq_tol(power_spectrum[215], 50.978375, 1e-6);
 }
 
+START_TEST(test_read_xyz_rejects_bad_header)
+{
+    FILE *fp = tmpfile();
+    ck_assert_ptr_nonnull(fp);
+
+    fprintf(fp, "not an XYZ header\n");
+    rewind(fp);
+
+    double alat;
+    int result = read_xyz(fp, NULL, NULL, NULL, &alat);
+    fclose(fp);
+
+    ck_assert_int_eq(result, -1);
+}
+
 int
 main()
 {
@@ -382,6 +398,7 @@ main()
     add_test(test_cumulative_integration);
     add_test(test_write_xyz);
     add_test(test_fourier_transform);
+    add_test(test_read_xyz_rejects_bad_header);
 
     test_teardown();
     return 0;
