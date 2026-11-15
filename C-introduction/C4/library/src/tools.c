@@ -15,7 +15,9 @@ elementwise_addition(
                      unsigned int len
                     )
 {
-
+    for (unsigned int i = 0; i < len; ++i) {
+        res[i] = v1[i] + v2[i];
+    }
 }
 
 void
@@ -26,7 +28,9 @@ elementwise_multiplication(
                            unsigned int len
                           )
 {
-
+    for (unsigned int i = 0; i < len; ++i) {
+        res[i] = v1[i] * v2[i];
+    }
 }
 
 void
@@ -36,7 +40,9 @@ addition_with_constant(
                        double constant,
                        unsigned int len)
 {
-
+    for (unsigned int i = 0; i < len; ++i) {
+        res[i] = v[i] + constant;
+    }
 }
 
 void
@@ -46,7 +52,9 @@ multiplication_with_constant(
                              double constant,
                              unsigned int len)
 {
-
+    for (unsigned int i = 0; i < len; ++i) {
+        res[i] = v[i] * constant;
+    }
 }
 
 double
@@ -56,7 +64,11 @@ dot_product(
             unsigned int len
            )
 {
-    return 0.;
+    double sum = 0.;
+    for (unsigned int i = 0; i < len; ++i) {
+        sum += v1[i] * v2[i];
+    }
+    return sum;
 }
 
 double **
@@ -65,7 +77,22 @@ create_2D_array(
                 unsigned int column_size
                )
 {
-    double **array = NULL;
+    double **array = malloc(sizeof(double *) * row_size);
+
+    if (array == NULL) 
+        return NULL;
+
+    for (unsigned int i = 0; i < row_size; ++i) {
+        array[i] = malloc(sizeof(double) * column_size);
+        if (array[i] == NULL) {
+            // Free previously allocated rows
+            for (unsigned int j = 0; j < i; ++j) {
+                free(array[j]);
+            }
+            free(array);
+            return NULL;
+        }
+    }
     return array;
 }
 
@@ -76,6 +103,10 @@ destroy_2D_array(
                 )
 
 {
+    for (unsigned int i = 0; i < n; ++i) {
+        free(array[i]);
+    }
+    free(array);
 }
 
 void
@@ -87,6 +118,13 @@ matrix_vector_multiplication(
                              unsigned int m
                             )
 {
+    for (unsigned int i = 0; i < n; i++){
+        result[i] = 0.0;
+
+        for (unsigned int j = 0; j < m; j++){
+            result[i] += A[i][j] * b[j];
+        }
+    }
 }
 
 void
@@ -99,6 +137,15 @@ matrix_matrix_multiplication(
                              unsigned int k
                             )
 {
+    for (unsigned int i = 0; i < n; i++){
+        for (unsigned int j = 0; j < k; j++){
+            result[i][j] = 0.0;
+
+            for (unsigned int l = 0; l < m; l++){
+                result[i][j] += A[i][l] * B[l][j];
+            }
+        }
+    }
 }
 
 double
@@ -107,7 +154,12 @@ vector_norm(
             unsigned int len
            )
 {
-    return 0.;
+    double sum = 0.0;
+
+    for (unsigned int i = 0; i < len; i++){
+        sum += v1[i] * v1[i];
+    }
+    return sqrt(sum);
 }
 
 
@@ -117,6 +169,14 @@ normalize_vector(
                  unsigned int len
                 )
 {
+    double norm = vector_norm(v1, len);
+
+    if (norm == 0.0)
+        return;
+
+    for (unsigned int i = 0; i < len; i++){
+        v1[i] /= norm;
+    }
 }
 
 double
@@ -125,7 +185,11 @@ average(
         unsigned int len
        )
 {
-    return 0.;
+    double sum = 0.0;
+    for (unsigned int i = 0; i < len; i++){
+        sum += v1[i];
+    }
+    return sum / len;
 }
 
 
@@ -135,7 +199,14 @@ standard_deviation(
                        unsigned int len
                   )
 {
-    return 0.;
+    double avg = average(v1, len);
+    double sum_sq_diff = 0.0;
+
+    for (unsigned int i = 0; i < len; i++){
+        double diff = v1[i] - avg;
+        sum_sq_diff += diff * diff;
+    }
+    return sqrt(sum_sq_diff / len);
 }
 
 double
@@ -145,8 +216,14 @@ distance_between_vectors(
                          unsigned int len
                         )
 {
-    return 0.;
+    double sum = 0.0;
+    for (unsigned int i = 0; i < len; i++){
+        double diff = v1[i] - v2[i];
+        sum += diff * diff;
+    }
+    return sqrt(sum);
 }
+
 
 void
 cumulative_integration(
@@ -156,7 +233,15 @@ cumulative_integration(
                        unsigned int v_len
                       )
 {
+    if (v_len == 0) {
+        return;
+    }
 
+    res[0] = 0.0; // Assuming the cumulative integral starts at 0
+
+    for (unsigned int i = 1; i < v_len; i++){
+        res[i] = res[i - 1] + (v[i - 1] + v[i]) * dx / 2.0; 
+    }
 }
 
 
@@ -172,7 +257,17 @@ write_xyz(
     fprintf(fp, "%i\nLattice=\"%f 0.0 0.0 0.0 %f 0.0 0.0 0.0 %f\" ", natoms, alat, alat, alat);
     fprintf(fp, "Properties=species:S:1:pos:R:3:vel:R:3 pbc=\"T T T\"\n");
     for(int i = 0; i < natoms; ++i){
-        //
+        fprintf(fp, "%s ", symbol);
+
+        for (int j = 0; j < 3; ++j){
+            fprintf(fp, "%f ", positions[i][j]);
+        }
+
+        for (int j = 0; j < 3; ++j){
+            fprintf(fp, "%f ", velocities[i][j]);
+        }
+
+        fprintf(fp, "\n");
     }
 }
 
@@ -181,7 +276,15 @@ void fft_freq(
               int n,
               double timestep)
 {
+    double factor = 2.0 * M_PI / (n * timestep);
 
+    for (int i = 0; i < n; ++i){
+        if (i <= n / 2){
+            res[i] = i * factor;
+        } else{
+            res[i] = (i - n) * factor;
+        }
+    }
 }
 
 /* Freely given functions */

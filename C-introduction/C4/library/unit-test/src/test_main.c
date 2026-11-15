@@ -317,7 +317,9 @@ START_TEST(test_write_xyz)
     positions[3][1] = 0.;
     positions[3][2] = 2.025;
 
-    memset(velocities[0], 0, 3 * SIZE * sizeof(double));
+    for (int i = 0; i < SIZE; ++i) {
+        memset(velocities[i], 0, 3 * sizeof(double));
+    }
 
     FILE *fp = fopen("atoms.extxyz", "w");
     write_xyz(fp, "Al", positions, velocities, 4.05, SIZE);

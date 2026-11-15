@@ -13,10 +13,12 @@ CFLAGS += \
 	-L$(LOCAL)/lib \
 	-I$(LOCAL)/include
 LIB += \
-     -lcheck
+     -lcheck \
+     -lsubunit
 
 
 test: obj_test run-test
+	./run-test
 
 run-test: $(OBJ_TEST) $(TEST)
 	$(CC) $(CFLAGS) $^ -o $@ $(LIB)
@@ -29,3 +31,5 @@ obj_test/%.o: src/%.c
 
 obj_test:
 	mkdir -p obj_test
+
+.PHONY: test
