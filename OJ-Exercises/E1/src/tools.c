@@ -373,3 +373,40 @@ void powerspectrum(
     free(complex_coefficient);
     free(data_cp);
 }
+
+void
+hann_window(
+            double *res,
+            double *signal,
+            unsigned int len
+           )
+{
+    for (unsigned int i = 0; i < len; ++i) {
+        double w = 0.5 * (1.0 - cos(2.0 * M_PI * i / (len - 1)));
+        res[i] = signal[i] * w;
+    }
+}
+
+double
+hann_power_correction(unsigned int len)
+{
+    double sum = 0.0;
+    for (unsigned int i = 0; i < len; ++i) {
+        double w = 0.5 * (1.0 - cos(2.0 * M_PI * i / (len - 1)));
+        sum += w * w;
+    }
+    return sum / len;
+}
+
+double
+parabolic_peak_position(
+                        double *y,
+                        unsigned int i
+                       )
+{
+    double a = y[i - 1], b = y[i], c = y[i + 1];
+    double denom = a - 2.0 * b + c;
+    if (denom == 0.0)
+        return (double)i;
+    return i + 0.5 * (a - c) / denom;
+}

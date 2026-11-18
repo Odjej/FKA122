@@ -298,3 +298,25 @@ read_xyz(
           double **positions,
           double **velocities,
           double *alat);
+
+
+/* Hann window: res[i] = signal[i] * w[i]. res and signal may be the same array. */
+void
+hann_window(
+            double *res,
+            double *signal,
+            unsigned int len
+           );
+
+/* Mean of w[i]^2, to renormalize the power after windowing */
+double
+hann_power_correction(unsigned int len);
+
+/* Position of a peak at bin i with parabolic interpolation, in units of bins.
+ * Multiply by the bin spacing to get a frequency. Requires 0 < i < len-1. */
+double
+parabolic_peak_position(
+                        double *y,
+                        unsigned int i
+                       );
+

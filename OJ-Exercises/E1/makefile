@@ -2,45 +2,42 @@ CC = gcc
 
 LOCAL = ${HOME}/.local
 CFLAGS = \
-	 -pedantic \
-	 -Wall \
-	 -Werror \
-	 -g \
-	 -Iinclude \
-	 -MMD \
-	 -Wl,-rpath,${LOCAL}/lib \
-	 -L${LOCAL}/lib \
-	 -I${LOCAL}/include
+	-pedantic \
+	-Wall \
+	-Werror \
+	-g \
+	-Iinclude \
+	-MMD \
+	-I${LOCAL}/include
 CFLAGS_OPT = \
-	     -O2 \
-	     -march=native
-
+	-O2 \
+	-march=native
+LDFLAGS = \
+	-Wl,-rpath,${LOCAL}/lib \
+	-L${LOCAL}/lib
 LIB = \
-      -lm \
-      -lgsl \
-      -lgslcblas
+	-lm \
+	-lgsl \
+	-lgslcblas
+
 OBJ = \
-      obj/tools.o\
-	  obj/unit_conversion.o\
-	  obj/verlet.o
-MAIN = \
-       obj/main.o
+	obj/tools.o \
+	obj/unit_conversion.o \
+	obj/verlet.o
+MAIN = obj/main.o
 
-program: obj _program
+program: $(MAIN) $(OBJ)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIB)
 
--include $(OBJ:.o=.d) $(MAIN:.o=.d)
-_program: $(MAIN) $(OBJ)
-	$(CC) $(CFLAGS) $^ -o program $(LIB)
-
-obj/%.o: src/%.c
-	$(CC) -c $(CFLAGS) $< -o $@ 
+obj/%.o: src/%.c | obj
+	$(CC) -c $(CFLAGS) $(CFLAGS_OPT) $< -o $@
 
 obj:
 	mkdir -p obj
 
-clean:
-	find -iname "*.o" -exec rm {} \;
-	find -iname "*.d" -exec rm {} \;
+-include $(OBJ:.o=.d) $(MAIN:.o=.d)
 
+clean:
+	rm -rf obj program
 
 .PHONY: clean
