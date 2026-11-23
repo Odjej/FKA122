@@ -9,6 +9,8 @@
 #include "unit_conversion.h"
 #include "tools.h"
 #include "verlet.h"
+#include "fput.h"
+#include "normal_modes.h"
 
 #define N 3
 #define OUTPUT_DIR "data"
@@ -186,16 +188,177 @@ static int spectrum(void)
     // 667cm^-1 = 20.0 THz = 126 rad/ps, but this is bend not stetch, so we don't see it here.
 }
 
+#define NPART 32
+
+/* ------------------------------------------------------------------
+ * harmonic FPUT chain: all energy initially in mode k = 1
+ * ------------------------------------------------------------------ */
+static int harmonic_modes(void)
+{
+    const unsigned int n = NPART;
+    const double alpha = 0.0;
+    const double E0 = NPART;
+    const double dt = 0.1;
+    const double t_max = 25000.0;
+    const long n_steps = (long) round(t_max / dt);
+    const long sample_every = 100;          /* every 10 time units */
+
+    double u[NPART], v[NPART], a[NPART];
+    double Q[NPART], P[NPART], energies[NPART];
+
+    /* Q_k = 0, P_k = sqrt(2 E0) delta_k1 */
+    for (unsigned int k = 0; k < n; ++k) {
+        Q[k] = 0.0;
+        P[k] = 0.0;
+    }
+    P[0] = sqrt(2.0 * E0);
+
+    /* The transform is its own inverse (m = 1) */
+    transform_to_normal_modes(Q, u, n);
+    transform_to_normal_modes(P, v, n);
+
+    fput_acceleration(a, u, alpha, n);
+
+    FILE *fp = open_output("normal_mode_energies.csv");
+    if (fp == NULL)
+        return 1;
+    fprintf(fp, "time,E1,E2,E3,E4,E5,Etot_modes,Etot_direct\n");
+
+    double max_rel_dev = 0.0;
+
+    for (long step = 0; step <= n_steps; ++step) {
+        if (step % sample_every == 0) {
+            calculate_normal_mode_energies(energies, u, v, n);
+
+            double e_modes = 0.0;
+            for (unsigned int k = 0; k < n; ++k)
+                e_modes += energies[k];
+
+            double e_direct = fput_kinetic_energy(v, n)
+                            + fput_potential_energy(u, alpha, n);
+
+            double dev = fabs(e_direct - E0) / E0;
+            if (dev > max_rel_dev) max_rel_dev = dev;
+
+            fprintf(fp, "%.6f,%.10e,%.10e,%.10e,%.10e,%.10e,%.10e,%.10e\n",
+                    step * dt,
+                    energies[0], energies[1], energies[2], energies[3], energies[4],
+                    e_modes, e_direct);
+        }
+
+        if (step < n_steps)
+            fput_verlet_step(a, u, v, alpha, dt, n);
+    }
+    fclose(fp);
+
+    printf("harmonic modes: max rel. deviation of total energy = %.3e\n", max_rel_dev);
+    return 0;
+}
+
+/* ------------------------------------------------------------------
+ * FPUT chain, general run (tasks 9 and 10)
+ *   alpha        : anharmonicity
+ *   t_max, dt    : total time and time step
+ *   sample_every : steps between samples of the mode energies
+ * Writes time, instantaneous E1..E32, running time average A1..A32,
+ * and the direct total energy.
+ * The time average is the mean over the samples taken so far,
+ * which approximates (1/t) * integral of E_k dt'.
+ * ------------------------------------------------------------------ */
+static int fput_run(double alpha, double t_max, double dt,
+                    long sample_every, const char *filename)
+{
+    const unsigned int n = NPART;
+    const double E0 = NPART;
+    const long n_steps = (long) round(t_max / dt);
+
+    double u[NPART], v[NPART], a[NPART];
+    double Q[NPART], P[NPART];
+    double energies[NPART], sum_E[NPART];
+
+    for (unsigned int k = 0; k < n; ++k) {
+        Q[k] = 0.0;
+        P[k] = 0.0;
+        sum_E[k] = 0.0;
+    }
+    P[0] = sqrt(2.0 * E0);
+
+    transform_to_normal_modes(Q, u, n);
+    transform_to_normal_modes(P, v, n);
+    fput_acceleration(a, u, alpha, n);
+
+    FILE *fp = open_output(filename);
+    if (fp == NULL)
+        return 1;
+
+    fprintf(fp, "time");
+    for (unsigned int k = 1; k <= n; ++k) fprintf(fp, ",E%u", k);
+    for (unsigned int k = 1; k <= n; ++k) fprintf(fp, ",A%u", k);
+    fprintf(fp, ",Etot_direct\n");
+
+    long n_samples = 0;
+
+    for (long step = 0; step <= n_steps; ++step) {
+        /* step == 0 is written for the instantaneous plot of task 9, but the
+         * average starts at the first sample after t = 0 (t_n = n * sample_every * dt) */
+        if (step % sample_every == 0) {
+            calculate_normal_mode_energies(energies, u, v, n);
+
+            if (step > 0) {
+                ++n_samples;
+                for (unsigned int k = 0; k < n; ++k)
+                    sum_E[k] += energies[k];
+            }
+
+            double e_direct = fput_kinetic_energy(v, n)
+                            + fput_potential_energy(u, alpha, n);
+
+            fprintf(fp, "%.6f", step * dt);
+            for (unsigned int k = 0; k < n; ++k)
+                fprintf(fp, ",%.8e", energies[k]);
+            for (unsigned int k = 0; k < n; ++k)
+                fprintf(fp, ",%.8e", n_samples > 0 ? sum_E[k] / n_samples : energies[k]);
+            fprintf(fp, ",%.8e\n", e_direct);
+        }
+
+        if (step < n_steps)
+            fput_verlet_step(a, u, v, alpha, dt, n);
+    }
+    fclose(fp);
+    printf("fput_run: alpha = %g, t_max = %g, %ld samples written to data/%s\n",
+           alpha, t_max, n_samples, filename);
+    return 0;
+}
+
+/* Task 9: alpha = 0.01 and 0.1, same setup as the harmonic task */
+static int anharmonic_short(void)
+{
+    int status = 0;
+    status |= fput_run(0.01, 25000.0, 0.1, 100, "modes_alpha0.01.csv");
+    status |= fput_run(0.1,  25000.0, 0.1, 100, "modes_alpha0.1.csv");
+    return status;
+}
+
+/* Task 10: t_max = 1e6, sample every 1000 steps */
+static int anharmonic_long(void)
+{
+    int status = 0;
+    status |= fput_run(0.01, 1.0e6, 0.1, 1000, "long_alpha0.01.csv");
+    status |= fput_run(0.1,  1.0e6, 0.1, 1000, "long_alpha0.1.csv");
+    return status;
+}
+
 /* ------------------------------------------------------------------
  * Dispatcher
  * ------------------------------------------------------------------ */
 static void usage(const char *prog)
 {
-    fprintf(stderr, "Usage: %s [trajectory|scan|spectrum|all]\n", prog);
+    fprintf(stderr, "Usage: %s [trajectory|scan|spectrum|modes|anharmonic|long|all]\n", prog);
 }
 
 int main(int argc, char *argv[])
 {
+
     const char *which = (argc > 1) ? argv[1] : "all";
     int status = 0;
 
@@ -205,10 +368,17 @@ int main(int argc, char *argv[])
         status = energy_scan();    
     } else if (strcmp(which, "spectrum") == 0) {
         status = spectrum();
+    } else if (strcmp(which, "modes") == 0) {
+        status = harmonic_modes();
+    } else if (strcmp(which, "anharmonic") == 0) {
+        status = anharmonic_short();
+    } else if (strcmp(which, "long") == 0) {
+        status = anharmonic_long();
     } else if (strcmp(which, "all") == 0) {
         status |= trajectory();
         status |= energy_scan();
         status |= spectrum();
+        status |= harmonic_modes();
     } else {
         usage(argv[0]);
         return 1;

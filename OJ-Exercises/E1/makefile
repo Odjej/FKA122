@@ -23,7 +23,9 @@ LIB = \
 OBJ = \
 	obj/tools.o \
 	obj/unit_conversion.o \
-	obj/verlet.o
+	obj/verlet.o \
+	obj/fput.o \
+	obj/normal_modes.o 
 MAIN = obj/main.o
 
 program: $(MAIN) $(OBJ)
