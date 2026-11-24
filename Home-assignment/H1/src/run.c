@@ -4,6 +4,8 @@
 #include "lattice.h"
 #include "potential.h"
 #include "tools.h"
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
 
 int
 run(
@@ -12,21 +14,38 @@ run(
    )
 {
     int N = 4;
-    double lattice_param;
+    double lattice_param = 5.;
     int n_atoms = 4 * N * N * N;
     
     double **positions = create_2D_array(n_atoms, 3);
-    FILE *file = fopen("lattice_potential_energy.csv", "w");
-    for(int i = 1; i < 200; i++){
-        lattice_param = 3.5 + 0.01 * i;
-                
-        init_fcc(positions, N, lattice_param);
-        
-        double E_pot = get_energy_AL(positions, N * lattice_param, n_atoms);
-        fprintf(file, "%.6f,%.6f, \n", lattice_param, E_pot);
+    double **forces = create_2D_array(n_atoms, 3);
+            
+    int total_timesteps = 1000;
+    double dt = 0.01;
+    init_fcc(positions, N, lattice_param);
+    
+    const gsl_rng_type * T;
+    gsl_rng * r;
+    gsl_rng_env_setup();
+    T = gsl_rng_default;
+    r = gsl_rng_alloc(T);
+    int seed = 42;
+    gsl_rng_set(r, seed);
+
+    for(int i = 0; i < n_atoms; i++){
+        for(int j = 0; i < 3; j++){
+            positions[i][j] += lattice_param * 0.065 * (1- 2 *gsl_rng_uniform(r));
+        }
+    }
+
+    for(int k = 0; k < total_timesteps; k++){
+        get_forces_AL(forces, positions, N * lattice_param, n_atoms);
         
     }
-    fclose(file);
+
+     
+
+
     destroy_2D_array(positions, n_atoms);
     return 0;
 }
