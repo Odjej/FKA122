@@ -22,9 +22,8 @@ void calculate_acceleration(double **accelerations, double **forces, const unsig
     }
 }
 
-double calculate_kinetic_energy(double **velocities, double *masses)
+double calculate_kinetic_energy(double **velocities, double *masses, const unsigned int N)
 {
-    const unsigned int N = 3;  // There are three particles
     double kinetic_energy = 0;
     for(int i = 0; i < N; i++){
         for(int j = 0; j < 3; j++){
@@ -51,7 +50,7 @@ double calculate_kinetic_energy(double **velocities, double *masses)
  *  N - Number of atoms
  *
 */
-void velocity_verlet_one_step(double **accelerations, double **forces, double **positions, double **velocities, double timestep, double lattice_param,const unsigned int N, double *masses)
+void velocity_verlet_one_step(double **accelerations, double **forces, double **positions, double **velocities, double timestep, double box_size,const unsigned int N, double *masses)
 {   
     for (int i = 0; i < N; i++) {
         for(int j = 0; j < 3; j++){
@@ -60,7 +59,7 @@ void velocity_verlet_one_step(double **accelerations, double **forces, double **
     }
     }
     
-    get_forces_AL(forces, positions, N * lattice_param, N);
+    get_forces_AL(forces, positions, box_size, N);
     calculate_acceleration(accelerations, forces, N, masses);
     
     for (int i = 0; i < N; i++) {

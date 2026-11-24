@@ -34,7 +34,7 @@ calculate_acceleration(double **accelerations, double **forces, const unsigned i
  *
 */
 double 
-calculate_kinetic_energy(double **velocities, double *masses);
+calculate_kinetic_energy(double **velocities, double *masses, const unsigned int N);
 
 
 /**

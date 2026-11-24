@@ -17,10 +17,10 @@ run(
    )
 {
     int N = 4;
-    double lattice_param = 5.;
+    double lattice_param = 4.005;
     int n_atoms = 4 * N * N * N;
-    int total_timesteps = 1000;
-    double dt = 0.0001;
+    int total_timesteps = 3000;
+    double dt = 0.001;
 
 
     double **positions = create_2D_array(n_atoms, 3);
@@ -63,9 +63,9 @@ run(
 
     for (int i = 0; i < total_timesteps; i++) {
         
-        velocity_verlet_one_step(accelerations, forces, positions, velocities, dt, lattice_param, n_atoms, masses);
+        velocity_verlet_one_step(accelerations, forces, positions, velocities, dt, lattice_param * N, n_atoms, masses);
         potential_energy = get_energy_AL(positions, N * lattice_param, n_atoms);
-        kinetic_energy = calculate_kinetic_energy(velocities, masses);
+        kinetic_energy = calculate_kinetic_energy(velocities, masses, n_atoms);
         total_energy = potential_energy + kinetic_energy;
         
         fprintf(file, "%.4f,%.12f,%.12f,%.12f \n", dt * i,potential_energy, kinetic_energy, total_energy);
