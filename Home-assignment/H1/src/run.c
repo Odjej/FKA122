@@ -1,11 +1,14 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
+
 #include "lattice.h"
 #include "potential.h"
 #include "tools.h"
-#include <gsl/gsl_rng.h>
-#include <gsl/gsl_randist.h>
+#include "verlet.h"
+
 
 int
 run(
@@ -16,12 +19,24 @@ run(
     int N = 4;
     double lattice_param = 5.;
     int n_atoms = 4 * N * N * N;
-    
+    int total_timesteps = 1000;
+    double dt = 0.0001;
+
+
     double **positions = create_2D_array(n_atoms, 3);
     double **forces = create_2D_array(n_atoms, 3);
-            
-    int total_timesteps = 1000;
-    double dt = 0.01;
+    double **accelerations = create_2D_array(n_atoms, 3);
+    double **velocities = create_2D_array(n_atoms, 3);
+    
+    double *masses = malloc(sizeof(double) * n_atoms);
+    
+    double potential_energy;
+    double kinetic_energy;
+    double total_energy;
+
+    const double AL_mass = 0.00279640;
+
+    
     init_fcc(positions, N, lattice_param);
     
     const gsl_rng_type * T;
@@ -33,19 +48,37 @@ run(
     gsl_rng_set(r, seed);
 
     for(int i = 0; i < n_atoms; i++){
-        for(int j = 0; i < 3; j++){
+        masses[i] = AL_mass;
+        for(int j = 0; j < 3; j++){
             positions[i][j] += lattice_param * 0.065 * (1- 2 *gsl_rng_uniform(r));
+            velocities[i][j] = 0;
         }
     }
 
-    for(int k = 0; k < total_timesteps; k++){
-        get_forces_AL(forces, positions, N * lattice_param, n_atoms);
-        
-    }
+    get_forces_AL(forces, positions, N * lattice_param, n_atoms);
+    calculate_acceleration(accelerations, forces, n_atoms, masses);
+    
+    FILE *file = fopen("energies_over_time.csv", "w");
+    fprintf(file, "time,potential_energy,kinetic_energy,total_energy\n");
 
-     
+    for (int i = 0; i < total_timesteps; i++) {
+        
+        velocity_verlet_one_step(accelerations, forces, positions, velocities, dt, lattice_param, n_atoms, masses);
+        potential_energy = get_energy_AL(positions, N * lattice_param, n_atoms);
+        kinetic_energy = calculate_kinetic_energy(velocities, masses);
+        total_energy = potential_energy + kinetic_energy;
+        
+        fprintf(file, "%.4f,%.12f,%.12f,%.12f \n", dt * i,potential_energy, kinetic_energy, total_energy);
+
+    }
+    fclose(file);
 
 
     destroy_2D_array(positions, n_atoms);
+    destroy_2D_array(velocities, n_atoms);
+    destroy_2D_array(forces, n_atoms);
+    destroy_2D_array(accelerations, n_atoms);
+    free(masses);
+
     return 0;
 }

@@ -42,8 +42,7 @@ addition_with_constant(
                        double *res,
                        double *v,
                        double constant,
-                       unsigned int len
-                      );
+                       unsigned int len);
 
 /* **********************************************
  *
@@ -57,8 +56,7 @@ multiplication_with_constant(
                              double *res,
                              double *v,
                              double constant,
-                             unsigned int len
-                            );
+                             unsigned int len);
 
 /* **********************************************
  *
@@ -152,27 +150,27 @@ matrix_matrix_multiplication(
 
 /* **********************************************
  *
- * Calculates the L2 norm of v with length
+ * Calculates the L2 norm of v1 with length
  * len
  *
  * **********************************************/
 double
 vector_norm(
-            double *v,
+            double *v1,
             unsigned int len
            );
 
 /* **********************************************
  *
- * Normalizes the vector v such that the L2
- * norm of v is 1.
+ * Normalizes the vector v1 such that the L2
+ * norm of v1 is 1.
  *
  * The length of the vector is len
  *
  * **********************************************/
 void
 normalize_vector(
-                 double *v,
+                 double *v1,
                  unsigned int len
                 );
 
@@ -184,7 +182,7 @@ normalize_vector(
  * **********************************************/
 double
 average(
-        double *v,
+        double *v1,
         unsigned int len
        );
 
@@ -196,8 +194,8 @@ average(
  * **********************************************/
 double
 standard_deviation(
-                   double *v,
-                   unsigned int len
+                       double *v1,
+                       unsigned int len
                   );
 
 /* **********************************************
@@ -249,8 +247,7 @@ write_xyz(
           double **positions,
           double **velocities,
           double alat,
-          int natoms
-         );
+          int natoms);
 
 
 /* **********************************************
@@ -264,11 +261,10 @@ write_xyz(
  *
  * **********************************************/
 void powerspectrum(
-                   double *res,
-                   double *signal,
-                   int n,
-                   double timestep
-                  );
+               double *res,
+               double *signal,
+               int n,
+               double timestep);
 
 
 /* **********************************************
@@ -285,10 +281,9 @@ void powerspectrum(
  *
  * **********************************************/
 void fft_freq(
-              double *res,
-              int n,
-              double timestep
-             );
+          double *res,
+          int n,
+          double timestep);
 
 
 /* **********************************************
@@ -296,11 +291,32 @@ void fft_freq(
  * Reads atoms from extxyz format.
  *
  * **********************************************/
-void
+int
 read_xyz(
-         FILE *fp,
-         char *symbol,
-         double **positions,
-         double **velocities,
-         double *alat
-        );
+          FILE *fp,
+          char *symbol,
+          double **positions,
+          double **velocities,
+          double *alat);
+
+
+/* Hann window: res[i] = signal[i] * w[i]. res and signal may be the same array. */
+void
+hann_window(
+            double *res,
+            double *signal,
+            unsigned int len
+           );
+
+/* Mean of w[i]^2, to renormalize the power after windowing */
+double
+hann_power_correction(unsigned int len);
+
+/* Position of a peak at bin i with parabolic interpolation, in units of bins.
+ * Multiply by the bin spacing to get a frequency. Requires 0 < i < len-1. */
+double
+parabolic_peak_position(
+                        double *y,
+                        unsigned int i
+                       );
+

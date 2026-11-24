@@ -31,7 +31,8 @@ OBJ = \
       obj/tools.o \
       obj/lattice.o \
       obj/potential.o \
-      obj/run.o
+      obj/run.o \
+	  obj/verlet.o
 
 OBJ_LIB = \
 	obj_nep/nep.o \
