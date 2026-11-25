@@ -9,6 +9,30 @@
 #include "tools.h"
 #include "verlet.h"
 
+double 
+scale_speeds(double **velocities, int n_atoms, double dt, double tau_T, double T_t, double T_eq ){
+    alpha_T = 1 + 2*dt / (tau_T) * (T_eq - T_t) / T_t;
+
+    for(int i = 0; i < n_atoms; i++){
+        for(int j = 0; j < 3; j++){
+            velocities[i][j] *= sqrt(alpha_T);
+        }
+    }
+}
+
+double 
+scale_positions(double **positions, int n_atoms, double dt, double tau_P, double P_t, double P_eq, double kappa_T){
+    alpha_P = 1 - kappa_T*dt / (tau_P) * (P_eq - P_t);
+
+    for(int i = 0; i < n_atoms; i++){
+        for(int j = 0; j < 3; j++){
+            positions[i][j] *= cbrt(alpha_P); // cubic root
+        }
+    }
+}
+
+
+
 
 int
 run(
@@ -20,8 +44,15 @@ run(
     double lattice_param = 4.03;
     int n_atoms = 4 * N * N * N;
     int total_timesteps = 10000;
-    double dt = .00001;
+    double dt = .005;
+    
+    double T_eq = 500 + 273.15;
+    double P_eq = 1;
+    
+    double tau_T = dt * 300;
+    double tau_P = dt * 300;
 
+    double kappa_T = 1 / (76.E9)
 
     double **positions = create_2D_array(n_atoms, 3);
     double **forces = create_2D_array(n_atoms, 3);
@@ -49,10 +80,6 @@ run(
 
     for(int i = 0; i < n_atoms; i++){
         masses[i] = AL_mass;
-        for(int j = 0; j < 3; j++){
-            positions[i][j] += lattice_param * 0.065 * (1- 2 *gsl_rng_uniform(r));
-            velocities[i][j] = 0;
-        }
     }
 
     get_forces_AL(forces, positions, N * lattice_param, n_atoms);
