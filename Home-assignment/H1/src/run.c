@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 
@@ -60,14 +61,10 @@ double calculate_temperature(double n_atoms, double **velocities, double *masses
 
 
 
-int
-run(
-    int argc,
-    char *argv[]
-   )
+static int run_default(void)
 {
     int N = 4;
-    double lattice_param = 4.03;
+    double lattice_param = 4.03230237;
     int n_atoms = 4 * N * N * N;
     int total_timesteps = 10000;
     double dt = .005;
@@ -118,16 +115,16 @@ run(
     }
 
 
-    get_forces_AL(forces, positions, N * lattice_param, n_atoms);
+    calculate(&potential_energy, NULL, forces, positions, N * lattice_param, n_atoms);
     calculate_acceleration(accelerations, forces, n_atoms, masses);
     
-    FILE *file = fopen("pressure_temperature_over_time_fixed units.csv", "w");
+    FILE *file = fopen("data/pressure_temperature_over_time_fixed units.csv", "w");
     
     FILE *files[10];
     char filename[50];
 
     for(int i = 0; i < 10; i++){
-        snprintf(filename, sizeof(filename), "positions_%d.csv", i);
+        snprintf(filename, sizeof(filename), "data/positions_%d.csv", i);
         files[i] = fopen(filename, "w");
         fprintf(files[i], "time,x,y,z\n");
     }
@@ -137,8 +134,7 @@ run(
     printf("Running simulations \n");
     for (int i = 0; i < total_timesteps; i++) {
         
-        velocity_verlet_one_step(accelerations, forces, positions, velocities, dt, lattice_param * N, n_atoms, masses);
-        potential_energy = get_energy_AL(positions, N * lattice_param, n_atoms);
+        velocity_verlet_one_step(accelerations, forces, positions, velocities, dt, lattice_param * N, n_atoms, masses, &potential_energy);
         kinetic_energy = calculate_kinetic_energy(velocities, masses, n_atoms);
         total_energy = potential_energy + kinetic_energy;
         
@@ -169,4 +165,124 @@ run(
     free(masses);
     gsl_rng_free(r);
     return 0;
+}
+
+static int run_task1(void)
+{
+    int N = 4;
+    int n_atoms = 4 * N * N * N;
+    double **positions = create_2D_array(n_atoms, 3);
+    FILE *file = fopen("data/lattice_potential_energy.csv", "w");
+
+    for (int i = 1; i < 200; i++) {
+        double lattice_param = 3.5 + 0.01 * i;
+        init_fcc(positions, N, lattice_param);
+
+        double potential_energy = get_energy_AL(positions, N * lattice_param, n_atoms);
+        fprintf(file, "%.6f,%.6f,\n", lattice_param, potential_energy);
     }
+
+    fclose(file);
+    destroy_2D_array(positions, n_atoms);
+    return 0;
+}
+
+static int run_task2(void)
+{
+    int N = 4;
+    double lattice_param = 4.03230237;
+    int n_atoms = 4 * N * N * N;
+    const double AL_mass = 0.00279640;
+    const double fs = 1e-3;   // 1 fs = 0.001 ps
+
+    double dt_fs[] = {0.5, 1, 2, 4, 6, 8, 12, 16, 18, 20, 24};
+    int n_dt = sizeof(dt_fs) / sizeof(dt_fs[0]);
+    double t_total = 5000.0 * fs;        // same physical time (5 ps) for every dt
+
+    double **positions = create_2D_array(n_atoms, 3);
+    double **forces = create_2D_array(n_atoms, 3);
+    double **accelerations = create_2D_array(n_atoms, 3);
+    double **velocities = create_2D_array(n_atoms, 3);
+    double *masses = malloc(sizeof(double) * n_atoms);
+
+
+    gsl_rng_env_setup();
+    gsl_rng *r = gsl_rng_alloc(gsl_rng_default);
+
+    for (int k = 0; k < n_dt; k++) {
+        double dt = dt_fs[k] * fs;
+        int total_timesteps = (int)(t_total / dt);
+
+        // Identical starting configuration for every dt
+        init_fcc(positions, N, lattice_param);
+        gsl_rng_set(r, 42);
+        for (int i = 0; i < n_atoms; i++) {
+            masses[i] = AL_mass;
+            for (int j = 0; j < 3; j++) {
+                positions[i][j] += lattice_param * 0.065 * (1 - 2 * gsl_rng_uniform(r));
+                velocities[i][j] = 0;
+            }
+        }
+
+        double potential_energy, kinetic_energy, total_energy;
+        calculate(&potential_energy, NULL, forces, positions,
+                  N * lattice_param, n_atoms);
+        calculate_acceleration(accelerations, forces, n_atoms, masses);
+
+        char filename[128];
+        snprintf(filename, sizeof(filename), "data/energies_dt_%.1ffs.csv", dt_fs[k]);
+        FILE *file = fopen(filename, "w");
+        if (!file) { perror("fopen"); return 1; }
+        fprintf(file, "time_fs,potential_energy,kinetic_energy,total_energy\n");
+
+        // Log t = 0 so we can plot E_tot(t) - E_tot(0)
+        kinetic_energy = calculate_kinetic_energy(velocities, masses, n_atoms);
+        fprintf(file, "%.6e,%.12f,%.12f,%.12f\n", 0.0, potential_energy,
+                kinetic_energy, potential_energy + kinetic_energy);
+
+        printf("dt = %.1f fs, %d steps\n", dt_fs[k], total_timesteps);
+        for (int i = 0; i < total_timesteps; i++) {
+            velocity_verlet_one_step(accelerations, forces, positions, velocities, dt,
+                                     lattice_param * N, n_atoms, masses,
+                                     &potential_energy);
+            kinetic_energy = calculate_kinetic_energy(velocities, masses, n_atoms);
+            total_energy = potential_energy + kinetic_energy;
+
+            fprintf(file, "%.6e,%.12f,%.12f,%.12f\n", dt_fs[k] * (i + 1),
+                    potential_energy, kinetic_energy, total_energy);
+
+            // Stop early if the run has blown up
+            if (!isfinite(total_energy)) {
+                printf("  energy diverged at step %d, stopping this dt\n", i + 1);
+                break;
+            }
+        }
+        fclose(file);
+    }
+
+    destroy_2D_array(positions, n_atoms);
+    destroy_2D_array(velocities, n_atoms);
+    destroy_2D_array(forces, n_atoms);
+    destroy_2D_array(accelerations, n_atoms);
+    free(masses);
+    gsl_rng_free(r);
+    return 0;
+}
+
+int run(int argc, char *argv[])
+{
+    if (argc == 1) {
+        return run_default();
+    }
+    if (argc == 2) {
+        if (strcmp(argv[1], "task1") == 0) {
+            return run_task1();
+        }
+        if (strcmp(argv[1], "task2") == 0) {
+            return run_task2();
+        }
+    }
+
+    fprintf(stderr, "Usage: %s [task1|task2]\n", argv[0]);
+    return EXIT_FAILURE;
+}

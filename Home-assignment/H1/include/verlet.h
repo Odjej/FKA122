@@ -48,9 +48,10 @@ calculate_kinetic_energy(double **velocities, double *masses, const unsigned int
  *  positions - Vector of positions
  *  velocities - Vector of velocities
  *  masses - Vector of masses
+ *  potential_energy - Potential energy at the updated positions
  *  kappa - Spring constant
  *  timestep - Time step
  *
 */
 void 
-velocity_verlet_one_step(double **accelerations, double **forces, double **positions, double **velocities, double timestep, double lattice_param,const unsigned int N, double *masses);
+velocity_verlet_one_step(double **accelerations, double **forces, double **positions, double **velocities, double timestep, double lattice_param,const unsigned int N, double *masses, double *potential_energy);

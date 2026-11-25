@@ -1,9 +1,10 @@
-from pathlib import Path
+import os
 
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.constants
-data_file = Path(__file__).parent.parent / "energies_over_time.csv"
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+data_file = os.path.join(base_dir, "data", "energies_over_time.csv")
 time, potential_energy, kinetic_energy, total_energy = np.genfromtxt(
     data_file,
     delimiter=",",

@@ -1,45 +1,36 @@
-from pathlib import Path
-
-from scipy.optimize import minimize
+import os
 
 import numpy as np
 import matplotlib.pyplot as plt
-data_file = Path(__file__).with_name("lattice_potential_energy.csv")
-lattice_constant, potential_energy = np.genfromtxt(
-    data_file, delimiter=",", usecols=(0, 1), unpack=True
-)
 
-n_atoms = 64
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+fig_dir = os.path.join(base_dir, "figures")
+os.makedirs(fig_dir, exist_ok=True)
+data_file = os.path.join(base_dir, "data", "lattice_potential_energy.csv")
+a, E = np.genfromtxt(data_file, delimiter=",", usecols=(0, 1), unpack=True)
 
+n_cells = 64
+mask = (a >= 60**(1/3)) & (a <= 70**(1/3))
+a_fit, E_fit = a[mask], E[mask]
 
-mask1 = lattice_constant >= 60**(1/3)
+p = np.polyfit(a_fit, E_fit, 2)
 
-cropped_lattice_constant = lattice_constant[mask1]
-cropped_potential_energy = potential_energy[mask1]
+a0_quad = -p[1] / (2 * p[0]) # analytical minimum of quadratic fit
+xs = np.linspace(a_fit.min(), a_fit.max(), 1000)
+print(f"quadratic a0 = {a0_quad:.8f} Å")
+plt.figure(figsize=(10, 6))
+plt.scatter(a_fit**3, E_fit / n_cells, label=r"Calculated energies")
+plt.plot(xs**3, np.polyval(p, xs) / n_cells, "r", label=r"Quadratic fit")
+plt.axvline(a0_quad**3, color="r", ls=":", lw=0.8, label=rf"Fit minimum: $a_0 = {a0_quad:.6f}$ Å")
+plt.xlabel(r'Unit cell volume (Å$^3$)')
+plt.ylabel(r'Energy (eV/unit cell)')
 
-mask2 = cropped_lattice_constant <= 70**(1/3)
-
-cropped_lattice_constant = cropped_lattice_constant[mask2]
-cropped_potential_energy = cropped_potential_energy[mask2]
-
-p = np.polyfit(cropped_lattice_constant, cropped_potential_energy, 4,)
-x = np.linspace(3,6, 1000)
-
-def f(x):
-    return (p[4] + p[3] * x + p[2] * x**2 + p[1] * x**3 + p[0] * x**4)
-
-
-plt.scatter(cropped_lattice_constant**3, cropped_potential_energy / n_atoms)
-plt.plot(x**3, (p[4] + p[3] * x + p[2] * x**2 + p[1] * x**3 + p[0] * x**4) / n_atoms)
-
-plt.xlabel('Unit cell volume (Å$^3$)')
-plt.ylabel('Energy (eV/unit cell)')
-
-plt.xlim((64,68))
+plt.xlim((63,68))
 plt.ylim((-10.50, -10.46))
+plt.legend()
 
-fit = minimize(f, x0 = 4, bounds=((3.5,4.5),))
-print(fit.x)
+
+plt.savefig(os.path.join(fig_dir, "equilibrium_lattice_constant.png"), dpi=800)
 plt.show()
 
-#[4.02977927]
+#[4.03230237]

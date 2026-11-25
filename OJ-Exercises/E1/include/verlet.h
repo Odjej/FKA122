@@ -66,3 +66,6 @@ double calculate_kinetic_energy(double *velocities, double *masses);
 */
 void velocity_verlet_one_step(double *accelerations, double *positions, double *velocities,
                               double *masses, double kappa, double timestep);
+
+
+

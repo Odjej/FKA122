@@ -18,6 +18,10 @@ The instruction on how to use the functions in lattice.c and potential.c is
 in the corresponding header files.
 
 Run `make` to compile your program.
+Run the program from this folder; generated and input CSV files are kept in
+`data/`.
+Run `./H1` for the default simulation, `./H1 task1` for task 1, or
+`./H1 task2` for task 2.
 
 Additionally in this folder you will find `nep.txt` which defines the parameters
 for the NEP (don't touch this file) and `src/nepc/` where the code for the NEP
