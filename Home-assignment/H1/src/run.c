@@ -17,10 +17,10 @@ run(
    )
 {
     int N = 4;
-    double lattice_param = 4.005;
+    double lattice_param = 4.03;
     int n_atoms = 4 * N * N * N;
-    int total_timesteps = 3000;
-    double dt = 0.001;
+    int total_timesteps = 10000;
+    double dt = .00001;
 
 
     double **positions = create_2D_array(n_atoms, 3);
@@ -58,9 +58,10 @@ run(
     get_forces_AL(forces, positions, N * lattice_param, n_atoms);
     calculate_acceleration(accelerations, forces, n_atoms, masses);
     
-    FILE *file = fopen("energies_over_time.csv", "w");
+    FILE *file = fopen("energies_over_time_dt_0_00001.csv", "w");
     fprintf(file, "time,potential_energy,kinetic_energy,total_energy\n");
-
+    
+    printf("Running simulations");
     for (int i = 0; i < total_timesteps; i++) {
         
         velocity_verlet_one_step(accelerations, forces, positions, velocities, dt, lattice_param * N, n_atoms, masses);
@@ -68,8 +69,10 @@ run(
         kinetic_energy = calculate_kinetic_energy(velocities, masses, n_atoms);
         total_energy = potential_energy + kinetic_energy;
         
-        fprintf(file, "%.4f,%.12f,%.12f,%.12f \n", dt * i,potential_energy, kinetic_energy, total_energy);
-
+        fprintf(file, "%.4f,%.12f,%.12f,%.12f \n", dt * (1 + i) ,potential_energy, kinetic_energy, total_energy);
+        if ((i + 1) % 100 == 0){
+            printf("Timestep %d done \n", (1 + i));
+        }
     }
     fclose(file);
 
@@ -79,6 +82,6 @@ run(
     destroy_2D_array(forces, n_atoms);
     destroy_2D_array(accelerations, n_atoms);
     free(masses);
-
+    gsl_rng_free(r);
     return 0;
 }
