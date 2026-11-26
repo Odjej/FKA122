@@ -50,7 +50,7 @@ double calculate_kinetic_energy(double **velocities, double *masses, const unsig
  *  N - Number of atoms
  *
 */
-void velocity_verlet_one_step(double **accelerations, double **forces, double **positions, double **velocities, double timestep, double box_size,const unsigned int N, double *masses, double *potential_energy)
+void velocity_verlet_one_step(double **accelerations, double **forces, double **positions, double **velocities, double timestep, double box_size,const unsigned int N, double *masses, double *potential_energy, double *virial)
 {   
     for (int i = 0; i < N; i++) {
         for(int j = 0; j < 3; j++){
@@ -59,7 +59,7 @@ void velocity_verlet_one_step(double **accelerations, double **forces, double **
     }
     }
     
-    calculate(potential_energy, NULL, forces, positions, box_size, N);
+    calculate(potential_energy, virial, forces, positions, box_size, N);
     calculate_acceleration(accelerations, forces, N, masses);
     
     for (int i = 0; i < N; i++) {

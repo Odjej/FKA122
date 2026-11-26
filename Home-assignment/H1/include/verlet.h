@@ -54,4 +54,4 @@ calculate_kinetic_energy(double **velocities, double *masses, const unsigned int
  *
 */
 void 
-velocity_verlet_one_step(double **accelerations, double **forces, double **positions, double **velocities, double timestep, double lattice_param,const unsigned int N, double *masses, double *potential_energy);
+velocity_verlet_one_step(double **accelerations, double **forces, double **positions, double **velocities, double timestep, double lattice_param,const unsigned int N, double *masses, double *potential_energy, double *virial);

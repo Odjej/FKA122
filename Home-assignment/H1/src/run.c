@@ -38,14 +38,9 @@ scale_lattice_param(double *lattice_param, double dt, double tau_P, double P_t, 
     *lattice_param *= cbrt(alpha_P);
 }
 
-double calculate_pressure(double volume, double n_atoms, double **forces, double **positions, double **velocities, double *masses){
-    double P_sum = 0.0;
-    for(int i = 0; i < n_atoms; i++){
-        for(int j = 0; j < 3; j++){
-        P_sum += masses[i] * velocities[i][j] *  velocities[i][j] + positions[i][j] * forces[i][j];
-    }
-}
-    return P_sum / (3.0 * volume);
+double calculate_pressure(double volume, double kinetic_energy, double virial)
+{
+    return (2.0 * kinetic_energy / 3.0 + virial) / volume;
 }
 
 double calculate_temperature(double n_atoms, double **velocities, double *masses){
@@ -69,7 +64,7 @@ static int run_default(void)
     int total_timesteps = 10000;
     double dt = .005;
     
-    double T_eq = 500 + 273.15;
+    double T_eq = 1000 + 273.15;
     
     double temperature;
     double pressure;
@@ -92,7 +87,8 @@ static int run_default(void)
     double potential_energy;
     double kinetic_energy;
     double total_energy;
-
+    double virial;
+    
     const double AL_mass = 0.00279640;
 
     
@@ -115,7 +111,7 @@ static int run_default(void)
     }
 
 
-    calculate(&potential_energy, NULL, forces, positions, N * lattice_param, n_atoms);
+    calculate(&potential_energy, &virial, forces, positions, N * lattice_param, n_atoms);
     calculate_acceleration(accelerations, forces, n_atoms, masses);
     
     FILE *file = fopen("data/pressure_temperature_over_time_fixed units.csv", "w");
@@ -134,19 +130,27 @@ static int run_default(void)
     printf("Running simulations \n");
     for (int i = 0; i < total_timesteps; i++) {
         
-        velocity_verlet_one_step(accelerations, forces, positions, velocities, dt, lattice_param * N, n_atoms, masses, &potential_energy);
+
+        velocity_verlet_one_step(accelerations, forces, positions, velocities, dt, lattice_param * N, n_atoms, masses, &potential_energy, &virial);
         kinetic_energy = calculate_kinetic_energy(velocities, masses, n_atoms);
         total_energy = potential_energy + kinetic_energy;
         
-        pressure = calculate_pressure((N * lattice_param) * (N * lattice_param) * (N * lattice_param), n_atoms, forces, positions, velocities, masses);
+
+        pressure = calculate_pressure(pow(N * lattice_param, 3), kinetic_energy, virial);
         temperature = calculate_temperature(n_atoms, velocities, masses);
 
         scale_positions(positions, n_atoms, dt, tau_P, pressure, P_eq, kappa_T);
         scale_speeds(velocities, n_atoms, dt, tau_T, temperature, T_eq);
         scale_lattice_param(&lattice_param, dt, tau_P, pressure, P_eq, kappa_T);
+
+        calculate(&potential_energy, NULL, forces, positions, N * lattice_param, n_atoms);
+        calculate_acceleration(accelerations, forces, n_atoms, masses);
+
         fprintf(file, "%.4f,%.12f,%.12f,%.12f,%.12f,%.12f,%.12f \n", dt * (1 + i) ,potential_energy, kinetic_energy, total_energy, temperature, pressure * pressure_conversion / 1e9, lattice_param);
-        
         if ((i + 1) % 100 == 0){
+            if(T_eq > 700 + 273.15){
+                T_eq -= 50;
+            }
             printf("Timestep %d done \n", (1 + i));
             for(int j = 0; j < 10; j++){
                 fprintf(files[j], "%.4f,%.12f,%.12f,%.12f\n", dt * (1 + i), positions[j*10][0], positions[j*10][1], positions[j*10][2]);
@@ -244,7 +248,7 @@ static int run_task2(void)
         for (int i = 0; i < total_timesteps; i++) {
             velocity_verlet_one_step(accelerations, forces, positions, velocities, dt,
                                      lattice_param * N, n_atoms, masses,
-                                     &potential_energy);
+                                     &potential_energy, NULL);
             kinetic_energy = calculate_kinetic_energy(velocities, masses, n_atoms);
             total_energy = potential_energy + kinetic_energy;
 
