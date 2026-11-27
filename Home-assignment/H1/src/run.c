@@ -61,11 +61,14 @@ static int run_default(void)
     int N = 4;
     double lattice_param = 4.03230237;
     int n_atoms = 4 * N * N * N;
-    int total_timesteps = 10000;
+    int total_timesteps = 60000;
     double dt = .005;
     
     double T_eq = 1000 + 273.15;
-    
+    double T_aim = 700 + 273.15;
+    bool melt = true;
+
+
     double temperature;
     double pressure;
 
@@ -89,6 +92,8 @@ static int run_default(void)
     double total_energy;
     double virial;
     
+    bool steady_state = false;
+
     const double AL_mass = 0.00279640;
 
     
@@ -122,10 +127,10 @@ static int run_default(void)
     for(int i = 0; i < 10; i++){
         snprintf(filename, sizeof(filename), "data/positions_%d.csv", i);
         files[i] = fopen(filename, "w");
-        fprintf(files[i], "time,x,y,z\n");
+        fprintf(files[i], "time,x,y,z,steady_state\n");
     }
     
-    fprintf(file, "time,potential_energy,kinetic_energy,total_energy,temperature,pressure,lattice_param\n");
+    fprintf(file, "time,potential_energy,kinetic_energy,total_energy,temperature,pressure,lattice_param,steady_state\n");
 
     printf("Running simulations \n");
     for (int i = 0; i < total_timesteps; i++) {
@@ -138,22 +143,30 @@ static int run_default(void)
 
         pressure = calculate_pressure(pow(N * lattice_param, 3), kinetic_energy, virial);
         temperature = calculate_temperature(n_atoms, velocities, masses);
+        
+        if(steady_state == false){
+            if(i > 30000){
+                steady_state = true;
+            }}
 
+        if(steady_state == false){
         scale_positions(positions, n_atoms, dt, tau_P, pressure, P_eq, kappa_T);
         scale_speeds(velocities, n_atoms, dt, tau_T, temperature, T_eq);
         scale_lattice_param(&lattice_param, dt, tau_P, pressure, P_eq, kappa_T);
+        }
 
         calculate(&potential_energy, NULL, forces, positions, N * lattice_param, n_atoms);
         calculate_acceleration(accelerations, forces, n_atoms, masses);
 
-        fprintf(file, "%.4f,%.12f,%.12f,%.12f,%.12f,%.12f,%.12f \n", dt * (1 + i) ,potential_energy, kinetic_energy, total_energy, temperature, pressure * pressure_conversion / 1e9, lattice_param);
-        if ((i + 1) % 100 == 0){
-            if(T_eq > 700 + 273.15){
+        fprintf(file, "%.4f,%.12f,%.12f,%.12f,%.12f,%.12f,%.12f,%d\n", dt * (1 + i) ,potential_energy, kinetic_energy, total_energy, temperature, pressure * pressure_conversion / 1e9, lattice_param, steady_state);
+        if ((i + 1) % 1000 == 0){
+            if(T_eq > T_aim && melt){
                 T_eq -= 50;
             }
             printf("Timestep %d done \n", (1 + i));
+
             for(int j = 0; j < 10; j++){
-                fprintf(files[j], "%.4f,%.12f,%.12f,%.12f\n", dt * (1 + i), positions[j*10][0], positions[j*10][1], positions[j*10][2]);
+                fprintf(files[j], "%.4f,%.12f,%.12f,%.12f,%d\n", dt * (1 + i), positions[j*10][0], positions[j*10][1], positions[j*10][2], steady_state);
             }
         }
     }
