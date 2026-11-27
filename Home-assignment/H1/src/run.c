@@ -61,10 +61,10 @@ static int run_default(void)
     int N = 4;
     double lattice_param = 4.03230237;
     int n_atoms = 4 * N * N * N;
-    int total_timesteps = 60000;
-    double dt = .005;
+    int total_timesteps = 200000;
+    double dt = .002;
     
-    double T_eq = 1000 + 273.15;
+    double T_eq = 1200 + 273.15;
     double T_aim = 700 + 273.15;
     bool melt = true;
 
@@ -145,7 +145,7 @@ static int run_default(void)
         temperature = calculate_temperature(n_atoms, velocities, masses);
         
         if(steady_state == false){
-            if(i > 30000){
+            if(i > 100000){
                 steady_state = true;
             }}
 
@@ -159,9 +159,9 @@ static int run_default(void)
         calculate_acceleration(accelerations, forces, n_atoms, masses);
 
         fprintf(file, "%.4f,%.12f,%.12f,%.12f,%.12f,%.12f,%.12f,%d\n", dt * (1 + i) ,potential_energy, kinetic_energy, total_energy, temperature, pressure * pressure_conversion / 1e9, lattice_param, steady_state);
-        if ((i + 1) % 1000 == 0){
+        if ((i + 1) % 2000 == 0){
             if(T_eq > T_aim && melt){
-                T_eq -= 50;
+                T_eq = fmax(T_aim, T_eq - 50);
             }
             printf("Timestep %d done \n", (1 + i));
 
